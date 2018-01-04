@@ -54,6 +54,7 @@ func main() {
 		slackIcon      string
 		folders        []string
 		folder         string
+		ignoreFolders  bool
 	)
 
 	flag.Usage = func() {
@@ -75,6 +76,7 @@ func main() {
 	flag.StringVar(&slackChannel, "slackChannel", "alerts", "Specify the slack channel to post to")
 	flag.StringVar(&slackIcon, "slackIcon", ":ghost:", "Specify the slack message icon")
 	flag.StringVar(&folder, "directory", "", "Directory to be polled. Is added to the args list.")
+	flag.BoolVar(&ignoreFolders, "ignoreFolders", true, "Ignore directories and just check files for age, defaults to true")
 	flag.Parse()
 	loglevel, err := log.ParseLevel(logLevel)
 	if err != nil {
@@ -126,7 +128,7 @@ func main() {
 
 	fmt.Println("Watching the following directories:")
 	for _, path := range folders {
-		fmt.Printf("- %s", path)
+		fmt.Printf("- %s \n", path)
 	}
 	fmt.Printf("Press Ctrl+C to end\n")
 
@@ -148,11 +150,13 @@ func main() {
 				"ModTime":  file.ModTime,
 			}).Info("")
 			if file.Age > maxAge {
-				log.WithFields(log.Fields{
-					"filename": file.FullName,
-					"mode":     file.Mode,
-					"ModTime":  file.ModTime,
-				}).Error(ageWarning)
+				if !(file.IsDir && ignoreFolders) {
+					log.WithFields(log.Fields{
+						"filename": file.FullName,
+						"mode":     file.Mode,
+						"ModTime":  file.ModTime,
+					}).Error(ageWarning)
+				}
 			}
 		}
 		time.Sleep(time.Duration(poll) * time.Second)
