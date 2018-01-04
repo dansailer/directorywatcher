@@ -1,0 +1,8 @@
+package: directorywatcher
+import:
+- package: github.com/multiplay/go-slack
+  subpackages:
+  - chat
+  - lrhook
+- package: github.com/sirupsen/logrus
+- package: github.com/namsral/flag
