@@ -55,6 +55,8 @@ func main() {
 		folders        []string
 		folder         string
 		ignoreFolders  bool
+		stage          string
+		msgcolor       string
 	)
 
 	flag.Usage = func() {
@@ -77,6 +79,7 @@ func main() {
 	flag.StringVar(&slackIcon, "slackIcon", ":ghost:", "Specify the slack message icon")
 	flag.StringVar(&folder, "directory", "", "Directory to be polled. Is added to the args list.")
 	flag.BoolVar(&ignoreFolders, "ignoreFolders", true, "Ignore directories and just check files for age, defaults to true")
+	flag.StringVar(&stage, "stage", "dev", "The stage of the watcher, to specify environment and colors. Values dev, acc, prod ")
 	flag.Parse()
 	loglevel, err := log.ParseLevel(logLevel)
 	if err != nil {
@@ -88,6 +91,17 @@ func main() {
 	}
 	log.SetLevel(loglevel)
 	log.SetFormatter(&log.JSONFormatter{})
+	switch stage {
+	case "dev":
+		msgcolor = "#9C1A22"
+	case "acc":
+		msgcolor = "#0000BF"
+	case "prod":
+		msgcolor = "#BF0000"
+	default:
+		msgcolor = "#9C1A22"
+	}
+	fmt.Printf("Stage: %s Color: %s \n", stage, msgcolor)
 	if slackWebhook != "" {
 		slacklevel, err := log.ParseLevel(slackWarnLevel)
 		if err != nil {
@@ -99,6 +113,14 @@ func main() {
 		}
 		cfg := lrhook.Config{
 			MinLevel: slacklevel,
+			LevelColors: map[string]string{
+				"debug":   msgcolor,
+				"info":    msgcolor,
+				"warning": msgcolor,
+				"error":   msgcolor,
+				"fatal":   msgcolor,
+				"panic":   msgcolor,
+			},
 			Message: chat.Message{
 				Channel:   "#" + slackChannel,
 				IconEmoji: slackIcon,
@@ -144,11 +166,13 @@ func main() {
 			}
 		}
 		for _, file := range files {
-			log.WithFields(log.Fields{
-				"filename": file.FullName,
-				"mode":     file.Mode,
-				"ModTime":  file.ModTime,
-			}).Info("")
+			if !(file.IsDir && ignoreFolders) {
+				log.WithFields(log.Fields{
+					"filename": file.FullName,
+					"mode":     file.Mode,
+					"ModTime":  file.ModTime,
+				}).Info("")
+			}
 			if file.Age > maxAge {
 				if !(file.IsDir && ignoreFolders) {
 					log.WithFields(log.Fields{
